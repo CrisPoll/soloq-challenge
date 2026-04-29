@@ -1,0 +1,215 @@
+import type { PlayerData, RankInfo } from "../types";
+
+function RankBadge({ rank }: { rank: RankInfo }) {
+  if (rank.tier === "UNRANKED") {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center">
+          <span className="text-slate-400 text-xs font-bold">?</span>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-400">Unranked</p>
+        </div>
+      </div>
+    );
+  }
+
+  const tierKey = rank.tier.toLowerCase();
+  const imgUrl = `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/${tierKey}.png`;
+
+  return (
+    <div className="flex items-center gap-2">
+      <img
+        src={imgUrl}
+        alt={rank.tier}
+        className="w-10 h-10 rounded-full"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+      />
+      <div>
+        <p className="text-sm font-semibold text-white">
+          {rank.tier} {rank.rank}
+        </p>
+        <p className="text-xs text-slate-400">{rank.leaguePoints} LP</p>
+      </div>
+    </div>
+  );
+}
+
+interface Props {
+  players: PlayerData[];
+  loading: boolean;
+  startRank?: number;
+}
+
+function SkeletonCard() {
+  return (
+    <div className="glass-card p-6 animate-pulse">
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full skeleton" />
+        <div className="flex-1 space-y-2">
+          <div className="h-5 w-32 skeleton rounded" />
+          <div className="h-4 w-24 skeleton rounded" />
+        </div>
+        <div className="h-8 w-16 skeleton rounded" />
+      </div>
+    </div>
+  );
+}
+
+const TIER_COLORS: Record<string, string> = {
+  challenger: "from-amber-300 to-yellow-500",
+  grandmaster: "from-red-400 to-red-600",
+  master: "from-purple-400 to-purple-600",
+  diamond: "from-cyan-400 to-blue-500",
+  emerald: "from-emerald-400 to-green-600",
+  platinum: "from-teal-400 to-teal-600",
+  gold: "from-yellow-400 to-amber-500",
+  silver: "from-slate-300 to-slate-500",
+  bronze: "from-orange-400 to-orange-700",
+  iron: "from-stone-400 to-stone-600",
+};
+
+export default function Leaderboard({ players, loading, startRank = 1 }: Props) {
+  if (loading && players.length === 0) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 space-y-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (!loading && players.length === 0) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 text-center py-20">
+        <p className="text-slate-500 text-lg">No hay jugadores configurados.</p>
+        <p className="text-slate-600 text-sm mt-2">
+          Agrega jugadores en el archivo .env usando PLAYERS=Nombre#TAG
+        </p>
+      </div>
+    );
+  }
+
+  const tierColor = (tier: string) =>
+    TIER_COLORS[tier.toLowerCase()] || "from-slate-400 to-slate-600";
+
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 space-y-3">
+      {players.map((player, i) => {
+        const pos = startRank + i;
+        const isFirst = pos === 1;
+        const isSecond = pos === 2;
+        const isThird = pos === 3;
+
+        return (
+          <div
+            key={player.puuid}
+            className="glass-card p-4 sm:p-5 hover:border-accent/30 transition-all duration-300 animate-fade-in group"
+            style={{ animationDelay: `${i * 80}ms`, opacity: 0 }}
+          >
+            <div className="flex items-center gap-3 sm:gap-5">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-bg-primary flex-shrink-0">
+                {isFirst ? (
+                  <span className="text-amber-400 text-lg font-bold">1</span>
+                ) : isSecond ? (
+                  <span className="text-slate-300 text-lg font-bold">2</span>
+                ) : isThird ? (
+                  <span className="text-amber-700 text-lg font-bold">3</span>
+                ) : (
+                  <span className="text-slate-500 text-sm font-semibold">
+                    {pos}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <img
+                  src={`https://ddragon.leagueoflegends.com/cdn/14.8.1/img/profileicon/${player.profileIconId}.png`}
+                  alt={player.gameName}
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-border flex-shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://ddragon.leagueoflegends.com/cdn/14.8.1/img/profileicon/29.png";
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm sm:text-base font-bold text-white truncate">
+                      {player.gameName}
+                    </p>
+                    <span className="text-xs text-slate-500">
+                      #{player.tagLine}
+                    </span>
+                    {player.rank.tier !== "UNRANKED" && (
+                      <span
+                        className={`hidden sm:inline text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gradient-to-r ${tierColor(player.rank.tier)} text-white/90`}
+                      >
+                        {player.rank.tier} {player.rank.rank}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                    <span>{player.rank.leaguePoints} LP</span>
+                    <span>·</span>
+                    <span className="text-win">
+                      {player.stats.wins}W
+                    </span>
+                    <span className="text-loss">
+                      {player.stats.losses}L
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {player.stats.winrate > 0
+                        ? `${(player.stats.winrate * 100).toFixed(0)}% WR`
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hidden sm:flex items-center gap-4 text-center flex-shrink-0">
+                <div>
+                  <p className="text-lg font-bold text-white">
+                    {player.stats.avgKDA.toFixed(1)}
+                  </p>
+                  <p className="text-[10px] text-slate-500 uppercase">KDA</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-white">
+                    {player.stats.avgCS.toFixed(0)}
+                  </p>
+                  <p className="text-[10px] text-slate-500 uppercase">CS</p>
+                </div>
+                <div>
+                  <p
+                    className={`text-lg font-bold ${
+                      player.stats.totalLPChange >= 0
+                        ? "text-win"
+                        : "text-loss"
+                    }`}
+                  >
+                    {player.stats.totalLPChange >= 0 ? "+" : ""}
+                    {player.stats.totalLPChange}
+                  </p>
+                  <p className="text-[10px] text-slate-500 uppercase">LP</p>
+                </div>
+              </div>
+
+              <div className="flex-shrink-0 text-right">
+                <p className="text-xl sm:text-2xl font-extrabold text-accent">
+                  {player.points}
+                </p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                  PTS
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
