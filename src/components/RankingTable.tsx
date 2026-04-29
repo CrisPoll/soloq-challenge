@@ -85,7 +85,7 @@ export default function RankingTable({ players, loading, onPlayerClick }: Props)
         return (
           <div
             key={player.puuid}
-            className="group flex items-center gap-5 px-5 py-4 bg-zinc-900/50 border border-l-2 border-white/5 rounded-xl hover:bg-zinc-800/60 transition-all duration-200 animate-fade-in cursor-pointer"
+            className="group flex items-center gap-5 px-5 py-4 bg-zinc-900/50 border border-l-[3px] border-r-transparent border-t-white/5 border-b-white/5 rounded-xl hover:bg-zinc-800/60 hover:-translate-y-[1px] transition-all duration-150 animate-fade-in cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.4)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
             style={{
               animationDelay: `${i * 50}ms`, opacity: 0,
               borderLeftColor: borderColor,
@@ -94,11 +94,11 @@ export default function RankingTable({ players, loading, onPlayerClick }: Props)
           >
             <div className="flex items-center justify-center w-8 flex-shrink-0">
               {i === 0 ? (
-                <span className="text-yellow-400 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>1</span>
+                <span className="text-[#F59E0B] text-lg font-bold" style={{ fontFamily: "var(--font-display)", textShadow: "0 0 12px rgba(245, 158, 11, 0.5)" }}>1</span>
               ) : i === 1 ? (
-                <span className="text-zinc-300 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>2</span>
+                <span className="text-zinc-300 text-lg font-bold" style={{ fontFamily: "var(--font-display)", textShadow: "0 0 8px rgba(212, 212, 216, 0.3)" }}>2</span>
               ) : i === 2 ? (
-                <span className="text-amber-700 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>3</span>
+                <span className="text-amber-600 text-lg font-bold" style={{ fontFamily: "var(--font-display)", textShadow: "0 0 8px rgba(217, 119, 6, 0.3)" }}>3</span>
               ) : (
                 <span className="text-zinc-500 text-sm font-semibold">{i + 1}</span>
               )}
@@ -130,9 +130,13 @@ export default function RankingTable({ players, loading, onPlayerClick }: Props)
                   {" / "}
                   {player.stats.losses}<span className="text-red-400/80">L</span>
                 </span>
-                <span className={`text-[11px] font-semibold tabular-nums ${wrColor(wr)}`}>
-                  {wrPct}% WR
-                </span>
+                {player.stats.wins === 0 && player.stats.losses === 0 ? (
+                  <span className="text-[11px] font-semibold tabular-nums text-zinc-500">— WR</span>
+                ) : (
+                  <span className={`text-[11px] font-semibold tabular-nums ${wrColor(wr)}`}>
+                    {wrPct}% WR
+                  </span>
+                )}
               </div>
             </div>
 
@@ -148,20 +152,20 @@ export default function RankingTable({ players, loading, onPlayerClick }: Props)
                 </span>
               </div>
 
-              <div className={`px-3 py-1.5 rounded-lg bg-gradient-to-b ${gradient} border border-white/5 flex items-center gap-2 min-w-[150px]`}>
+              <div className={`px-3 py-2 rounded-lg bg-gradient-to-b ${gradient} border border-white/5 flex items-center gap-2 min-w-[150px]`}>
                 <img
                   src={getRankIcon(player.rank.tier)}
                   className="w-6 h-6"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
-                <div>
+                <div className="leading-tight">
                   <span
-                    className={`text-xs font-bold uppercase tabular-nums ${glow}`}
+                    className={`text-xs font-bold uppercase tabular-nums block ${glow}`}
                     style={{ color: tierColor, fontFamily: "var(--font-display)" }}
                   >
                     {player.rank.tier} {player.rank.rank}
                   </span>
-                  <span className="text-[10px] text-zinc-400 ml-1 tabular-nums">{player.rank.leaguePoints} LP</span>
+                  <span className="text-[10px] text-zinc-400 tabular-nums opacity-70">{player.rank.leaguePoints} LP</span>
                 </div>
               </div>
             </div>

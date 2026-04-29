@@ -2,9 +2,10 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import { createRiotAPI, type RiotLeagueEntry } from "./riot.js";
-import { calculateMatchPoints, calculateTotalPoints } from "./scoring.js";
+import { calculateMatchPoints, calculateTotalPoints, rankToNumericLP, type MatchPoints } from "./scoring.js";
 import { PlayerCache } from "./cache.js";
 import type { PlayerData, RankInfo, LeaderboardEntry } from "../../src/types.js";
 import type { LPSnapshot } from "./lp-history.js";
@@ -14,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RIOT_API_KEY = process.env.RIOT_API_KEY || "";
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const PLAYER_LIST = process.env.PLAYERS || "";
-const UPDATE_INTERVAL = 10 * 60 * 1000;
+const UPDATE_INTERVAL = 30 * 60 * 1000;
 
 const api = createRiotAPI(RIOT_API_KEY);
 const cache = new PlayerCache(UPDATE_INTERVAL);
@@ -37,6 +38,7 @@ function getRankIconUrl(tier: string): string {
 function parseRank(entries: RiotLeagueEntry[]): RankInfo {
   const soloQ = entries.find((e) => e.queueType === "RANKED_SOLO_5x5");
   if (!soloQ) {
+    console.warn(`[RANK] No SoloQ entry found. Available queues: ${entries.map(e => e.queueType).join(", ") || "none"}`);
     return {
       tier: "UNRANKED",
       rank: "",
@@ -80,16 +82,17 @@ async function fetchPlayerData(
     const existingMatches = cache.getMatches(puuid) || [];
 
     const matchIds = await api.getMatchIds(puuid, 10);
-    const newMatchIds = matchIds.filter(
-      (id) => !cache.isMatchProcessed(id)
-    );
+    const newMatchIds = matchIds
+      .filter((id) => !cache.isMatchProcessed(id))
+      .slice(0, 5);
 
-    const newMatches: Awaited<ReturnType<typeof calculateMatchPoints>>[] = [];
+    const newMatches: MatchPoints[] = [];
     for (const matchId of newMatchIds) {
       try {
         const match = await api.getMatch(matchId);
-        const points = calculateMatchPoints(match, puuid, null);
-        newMatches.push(points);
+        const mp = calculateMatchPoints(match, puuid, null);
+        mp.timestamp = match.info.gameEndTimestamp;
+        newMatches.push(mp);
         cache.markMatchProcessed(matchId);
         await new Promise((r) => setTimeout(r, 100));
       } catch (err) {
@@ -97,11 +100,11 @@ async function fetchPlayerData(
       }
     }
 
-    const allMatches = [...existingMatches, ...newMatches];
-    const sortedMatches = allMatches.sort(
-      (a, b) => existingMatches.indexOf(a) - existingMatches.indexOf(b)
-    );
-    const recentMatches = sortedMatches.slice(0, 20);
+    const allMatches = [...existingMatches, ...newMatches]
+      .filter((m) => m.isSoloQ)
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    const recentMatches = allMatches.slice(0, 50);
 
     const { points, stats } = calculateTotalPoints(recentMatches);
 
@@ -147,38 +150,21 @@ async function refreshAllPlayers(): Promise<void> {
 
   console.log(`[Refresh] Updating ${players.length} players...`);
 
-  const first = await fetchPlayerData(players[0].gameName, players[0].tagLine);
-  if (!first) {
-    console.error("[Refresh] First player failed. Check your RIOT_API_KEY (dev keys expire every 24h).");
-    console.error("[Refresh] The server will keep running and retry in 10 minutes.");
-    return;
+  let ok = 0;
+  let failed = 0;
+
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i];
+    const result = await fetchPlayerData(p.gameName, p.tagLine);
+    if (result) ok++;
+    else failed++;
+    if (i < players.length - 1) {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
   }
 
-  const rest = players.slice(1);
-  const restResults = await Promise.allSettled(
-    rest.map((p) => fetchPlayerData(p.gameName, p.tagLine))
-  );
-
-  const restOk = restResults.filter((r) => r.status === "fulfilled" && r.value).length;
-  const restFailed = restResults.filter((r) => r.status === "rejected" || !r.value).length;
-  console.log(`[Refresh] Done: ${restOk + 1} succeeded, ${restFailed} failed`);
-
+  console.log(`[Refresh] Done: ${ok} succeeded, ${failed} failed`);
   saveLPSnapshot();
-}
-
-function rankToNumericLP(tier: string, rank: string, lp: number): number {
-  const BASE: Record<string, number> = {
-    IRON: 0, BRONZE: 400, SILVER: 800, GOLD: 1200,
-    PLATINUM: 1600, EMERALD: 2000, DIAMOND: 2400,
-    MASTER: 2800, GRANDMASTER: 3200, CHALLENGER: 3600,
-  };
-  const t = tier.toUpperCase();
-  const base = BASE[t] || 0;
-  if (["MASTER", "GRANDMASTER", "CHALLENGER"].includes(t)) {
-    return base + lp;
-  }
-  const div: Record<string, number> = { I: 300, II: 200, III: 100, IV: 0 };
-  return base + (div[rank] || 0) + lp;
 }
 
 function saveLPSnapshot(): void {
@@ -231,7 +217,8 @@ app.get("/api/leaderboard", (_req, res) => {
 
 app.get("/api/lp-history", (_req, res) => {
   const snapshots = cache.getLPSnapshots();
-  res.json(snapshots);
+  const cutoff = new Date("2026-04-28T00:00:00-04:00").getTime();
+  res.json(snapshots.filter((s) => s.timestamp >= cutoff));
 });
 
 app.get("/api/global-stats", (_req, res) => {
@@ -246,20 +233,60 @@ app.get("/api/global-stats", (_req, res) => {
   const totalGames = players.reduce((s, p) => s + p.stats.gamesPlayed, 0);
 
   let playerOfDay: { gameName: string; lpGained: number } | null = null;
-  if (snapshots.length >= 2) {
-    const first = snapshots[0];
-    const last = snapshots[snapshots.length - 1];
-    let best = { gameName: "", lpGained: -Infinity };
-    for (const fp of first.players) {
-      const lp = last.players.find((lp) => lp.gameName === fp.gameName);
-      if (lp) {
-        const gained = lp.numericLP - fp.numericLP;
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const dayStart = todayMidnight.getTime();
+
+  const todaySnapshots = snapshots.filter((s) => s.timestamp >= dayStart);
+
+  if (todaySnapshots.length >= 2) {
+    const earliest = todaySnapshots[0];
+    const latest = todaySnapshots[todaySnapshots.length - 1];
+    let best = { gameName: "", lpGained: -1 };
+    for (const p of players) {
+      const firstLP = earliest.players.find(
+        (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
+      );
+      const lastLP = latest.players.find(
+        (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
+      );
+      if (firstLP && lastLP) {
+        const gained = lastLP.numericLP - firstLP.numericLP;
+        console.log(`[POD] ${p.gameName}: first=${firstLP.numericLP} (${firstLP.tier} ${firstLP.rank} ${firstLP.lp}LP) last=${lastLP.numericLP} (${lastLP.tier} ${lastLP.rank} ${lastLP.lp}LP) delta=${gained}`);
         if (gained > best.lpGained) {
-          best = { gameName: fp.gameName, lpGained: gained };
+          best = { gameName: p.gameName, lpGained: gained };
         }
       }
     }
-    if (best.lpGained > -Infinity) playerOfDay = best;
+    if (best.lpGained > 0) {
+      playerOfDay = best;
+    }
+  }
+
+  if (!playerOfDay) {
+    let mostWins = { gameName: "", wins: 0, lpGained: 0 };
+    for (const p of players) {
+      const todayWins = p.matches.filter(
+        (m) => m.result === "Win" && m.timestamp >= dayStart
+      ).length;
+      if (todayWins > mostWins.wins) {
+        const delta = todaySnapshots.length >= 2
+          ? (() => {
+              const first = todaySnapshots[0].players.find(
+                (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
+              );
+              const last = todaySnapshots[todaySnapshots.length - 1].players.find(
+                (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
+              );
+              return first && last ? last.numericLP - first.numericLP : 0;
+            })()
+          : 0;
+        mostWins = { gameName: p.gameName, wins: todayWins, lpGained: delta };
+      }
+    }
+    if (mostWins.wins > 0) {
+      playerOfDay = { gameName: mostWins.gameName, lpGained: mostWins.lpGained };
+    }
   }
 
   const champMap = new Map<string, {
@@ -288,11 +315,14 @@ app.get("/api/global-stats", (_req, res) => {
       championIcon: `https://ddragon.leagueoflegends.com/cdn/14.8.1/img/champion/${c.champion}.png`,
       winrate: c.wins + c.losses > 0 ? c.wins / (c.wins + c.losses) : 0,
     }))
-    .filter((c) => c.wins + c.losses >= 2)
-    .sort((a, b) => b.winrate - a.winrate || b.wins - a.wins)
-    .slice(0, 5);
+    .sort((a, b) => b.winrate - a.winrate || b.wins - a.wins);
 
-  res.json({ avgWinrate, totalGames, playerOfDay, topChampions });
+  const eligible = topChampions.filter((c) => c.wins + c.losses >= 3);
+  const top5 = eligible.length > 0
+    ? eligible.slice(0, 5)
+    : topChampions.slice(0, 5);
+
+  res.json({ avgWinrate, totalGames, playerOfDay, topChampions: top5 });
 });
 
 app.get("/api/seed-mock", async (_req, res) => {
@@ -352,16 +382,41 @@ app.get("/api/seed-mock", async (_req, res) => {
     snapshots.push({
       timestamp: ts,
       players: players.map((p) => {
-        const base = p.rank.tier === "MASTER" ? 2800 : p.rank.tier === "DIAMOND" ? 2400 : p.rank.tier === "PLATINUM" ? 1800 : p.rank.tier === "GOLD" ? 1400 : p.rank.tier === "SILVER" ? 900 : 1200;
+        const realNumeric = rankToNumericLP(p.rank.tier, p.rank.rank, p.rank.leaguePoints);
         const offset = Math.sin(h * 0.8 + players.indexOf(p)) * 100;
-        const lp = Math.floor(base + p.rank.leaguePoints + offset + Math.random() * 30 - 15);
-        return { gameName: p.gameName, tier: p.rank.tier, rank: p.rank.rank, lp, numericLP: lp };
+        const numericLP = Math.floor(realNumeric + offset + Math.random() * 30 - 15);
+        return { gameName: p.gameName, tier: p.rank.tier, rank: p.rank.rank, lp: p.rank.leaguePoints, numericLP };
       }),
     });
   }
   snapshots.forEach((s) => cache.addLPSnapshot(s));
 
   res.json({ status: "ok", seeded: players.length, snapshots: snapshots.length });
+});
+
+app.get("/api/fix-snapshots", async (_req, res) => {
+  const SNAPSHOT_FILE = path.resolve(__dirname, "..", "data", "lp-snapshots.json");
+  try {
+    const raw = await fs.readFile(SNAPSHOT_FILE, "utf-8");
+    const data: LPSnapshot[] = JSON.parse(raw);
+    let fixed = 0;
+    for (const snapshot of data) {
+      for (const player of snapshot.players) {
+        const corrected = rankToNumericLP(player.tier, player.rank, player.lp);
+        if (player.numericLP !== corrected) {
+          player.numericLP = corrected;
+          fixed++;
+        }
+      }
+    }
+    await fs.writeFile(SNAPSHOT_FILE, JSON.stringify(data, null, 2), "utf-8");
+    await cache.loadLPSnapshots();
+    console.log(`[FIX] Recalculated ${fixed} numericLP values across ${data.length} snapshots`);
+    res.json({ status: "ok", snapshots: data.length, fixed });
+  } catch (err: any) {
+    console.error("[FIX] Failed:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/players/:gameName", (req, res) => {
@@ -393,6 +448,27 @@ async function start(): Promise<void> {
     console.warn(" Set it in .env file or environment variables");
     console.warn(" Get a key at: https://developer.riotgames.com/");
     console.warn("========================================");
+  }
+
+  await cache.loadLPSnapshots();
+
+  const snapshots = cache.getLPSnapshots();
+  if (snapshots.length > 0) {
+    let fixed = 0;
+    for (const s of snapshots) {
+      for (const p of s.players) {
+        const corrected = rankToNumericLP(p.tier, p.rank, p.lp);
+        if (p.numericLP !== corrected) {
+          p.numericLP = corrected;
+          fixed++;
+        }
+      }
+    }
+    if (fixed > 0) {
+      const SNAPSHOT_FILE = path.resolve(__dirname, "..", "data", "lp-snapshots.json");
+      await fs.writeFile(SNAPSHOT_FILE, JSON.stringify(snapshots, null, 2), "utf-8");
+      console.log(`[FIX] Auto-migrated ${fixed} numericLP values in ${snapshots.length} snapshots`);
+    }
   }
 
   await refreshAllPlayers();

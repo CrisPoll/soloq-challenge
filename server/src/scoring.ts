@@ -1,7 +1,30 @@
 import type { RiotMatch, RiotParticipant } from "./riot.js";
 
+const RANK_NUMERIC_MAP: Record<string, Record<string, number>> = {
+  CHALLENGER:  { I: 3200, II: 3200, III: 3200, IV: 3200 },
+  GRANDMASTER:{ I: 2800, II: 2800, III: 2800, IV: 2800 },
+  MASTER:     { I: 2400, II: 2400, III: 2400, IV: 2400 },
+  DIAMOND:    { I: 2100, II: 1900, III: 1700, IV: 1600 },
+  EMERALD:    { I: 1500, II: 1400, III: 1300, IV: 1200 },
+  PLATINUM:   { I: 1100, II: 1000, III:  900, IV:  800 },
+  GOLD:       { I:  700, II:  600, III:  500, IV:  400 },
+  SILVER:     { I:  350, II:  300, III:  250, IV:  200 },
+  BRONZE:     { I:  150, II:  100, III:   50, IV:    0 },
+  IRON:       { I:    0, II:    0, III:    0, IV:    0 },
+};
+
+export function rankToNumericLP(tier: string, rank: string, lp: number): number {
+  const t = tier.toUpperCase();
+  const tierMap = RANK_NUMERIC_MAP[t];
+  if (!tierMap) return lp;
+  const division = rank || "IV";
+  const base = tierMap[division] ?? tierMap["IV"] ?? 0;
+  return base + lp;
+}
+
 export interface MatchPoints {
   matchId: string;
+  timestamp: number;
   result: "Win" | "Loss";
   points: number;
   lpChange: number;
@@ -12,12 +35,13 @@ export interface MatchPoints {
   cs: number;
   champion: string;
   duration: number;
+  isSoloQ: boolean;
 }
 
 export function calculateMatchPoints(
   match: RiotMatch,
   puuid: string,
-  prevLp: number | null
+  realLpChange: number | null
 ): MatchPoints {
   const participant = match.info.participants.find((p) => p.puuid === puuid);
   if (!participant) {
@@ -40,15 +64,12 @@ export function calculateMatchPoints(
     points += 3;
   }
 
-  const isSoloQ =
-    match.info.queueId === 420 ||
-    match.info.queueId === 440 ||
-    match.info.queueId === 470;
+  const isSoloQ = match.info.queueId === 420;
 
   let lpChange = 0;
-  if (!isSoloQ && prevLp !== null) {
-    lpChange = 0;
-  } else {
+  if (isSoloQ && realLpChange !== null) {
+    lpChange = realLpChange;
+  } else if (isSoloQ) {
     const baseLp = win ? 20 : -18;
     const performanceBonus = kda >= 5 ? 3 : kda >= 3 ? 2 : 0;
     lpChange = Math.round(baseLp + (win ? performanceBonus : -performanceBonus));
@@ -56,6 +77,7 @@ export function calculateMatchPoints(
 
   return {
     matchId: match.metadata.matchId,
+    timestamp: match.info.gameEndTimestamp,
     result: win ? "Win" : "Loss",
     points,
     lpChange,
@@ -66,6 +88,7 @@ export function calculateMatchPoints(
     cs,
     champion: participant.championName,
     duration: match.info.gameDuration,
+    isSoloQ,
   };
 }
 

@@ -95,7 +95,7 @@ export default function PlayerDetail({ player, onClose }: { player: PlayerData; 
               <p className="text-zinc-600 text-sm py-8 text-center">Sin partidas recientes</p>
             ) : (
               <div className="space-y-1.5 max-h-[360px] overflow-y-auto scrollbar-thin pr-1">
-                {player.matches.slice(0, 15).map((match) => (
+                {player.matches.slice(0, 5).map((match) => (
                   <div
                     key={match.matchId}
                     className={`flex items-center gap-3 p-2.5 rounded-lg border ${

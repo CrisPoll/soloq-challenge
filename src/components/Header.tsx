@@ -5,7 +5,7 @@ function Countdown() {
   useEffect(() => {
     function update() {
       const now = Date.now();
-      const next = Math.ceil(now / (10 * 60 * 1000)) * (10 * 60 * 1000);
+      const next = Math.ceil(now / (30 * 60 * 1000)) * (30 * 60 * 1000);
       const diff = next - now;
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);

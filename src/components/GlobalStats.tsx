@@ -32,7 +32,7 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
   if (!stats) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <h3
         className="text-[10px] font-semibold text-zinc-400 uppercase tracking-[0.15em] px-1"
         style={{ fontFamily: "var(--font-display)" }}
@@ -41,7 +41,7 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
       </h3>
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-3.5 space-y-3.5">
-        <div>
+        <div className="bg-zinc-800/60 rounded-lg p-3 -m-1">
           <div className="flex items-center gap-2 mb-1.5">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-400 flex-shrink-0">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -54,7 +54,7 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
           <p className="text-[9px] text-zinc-600 mt-0.5">{stats.totalGames} partidas</p>
         </div>
 
-        <div className="border-t border-white/5 pt-3">
+        <div className="border-t border-zinc-800 pt-3.5">
           <div className="flex items-center gap-2 mb-1.5">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-yellow-400 flex-shrink-0">
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -67,16 +67,24 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
               <p className="text-sm font-bold text-white uppercase truncate" style={{ fontFamily: "var(--font-display)" }}>
                 {stats.playerOfDay.gameName}
               </p>
-              <p className="text-xs font-semibold tabular-nums text-green-400">
-                +{stats.playerOfDay.lpGained.toFixed(0)} LP
-              </p>
+              {(() => {
+                const delta = stats.playerOfDay.lpGained;
+                const absDelta = Math.abs(delta);
+                const prefix = delta > 0 ? "+" : delta < 0 ? "-" : "±";
+                const deltaColor = delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-zinc-400";
+                return (
+                  <p className={`text-xs font-semibold tabular-nums ${deltaColor}`}>
+                    {delta === 0 ? "±0" : `${prefix}${absDelta}`} LP
+                  </p>
+                );
+              })()}
             </div>
           ) : (
             <p className="text-xs text-zinc-600">Sin datos aún</p>
           )}
         </div>
 
-        <div className="border-t border-white/5 pt-3">
+        <div className="border-t border-zinc-800 pt-3.5">
           <div className="flex items-center gap-2 mb-2">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400 flex-shrink-0">
               <path d="M18 20V10M12 20V4M6 20v-6" />
@@ -113,7 +121,7 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
         </div>
       </div>
 
-      <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-3.5 space-y-2.5">
+      <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-3.5 space-y-2.5 mb-4">
         <div className="flex items-center gap-2">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400 flex-shrink-0">
             <path d="M12 20V10M18 20V4M6 20v-6" />

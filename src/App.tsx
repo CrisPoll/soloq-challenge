@@ -51,6 +51,15 @@ export default function App() {
             </div>
           </div>
 
+          <div className="border-t border-zinc-700/50 pt-8">
+            <span
+              className="text-xs text-zinc-500 tracking-widest uppercase"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              PROGRESIÓN DE LP
+            </span>
+          </div>
+
           <LPChart players={players} />
 
           {error && (
