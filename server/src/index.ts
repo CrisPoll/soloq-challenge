@@ -19,6 +19,7 @@ const UPDATE_INTERVAL = 30 * 60 * 1000;
 
 const api = createRiotAPI(RIOT_API_KEY);
 const cache = new PlayerCache(UPDATE_INTERVAL);
+let isRefreshing = false;
 
 function parsePlayers(): { gameName: string; tagLine: string }[] {
   return PLAYER_LIST.split(",")
@@ -142,29 +143,38 @@ async function fetchPlayerData(
 }
 
 async function refreshAllPlayers(): Promise<void> {
-  const players = parsePlayers();
-  if (players.length === 0) {
-    console.warn("[Refresh] No players configured");
+  if (isRefreshing) {
+    console.log("[Refresh] Already running, skipping...");
     return;
   }
-
-  console.log(`[Refresh] Updating ${players.length} players...`);
-
-  let ok = 0;
-  let failed = 0;
-
-  for (let i = 0; i < players.length; i++) {
-    const p = players[i];
-    const result = await fetchPlayerData(p.gameName, p.tagLine);
-    if (result) ok++;
-    else failed++;
-    if (i < players.length - 1) {
-      await new Promise((r) => setTimeout(r, 1500));
+  isRefreshing = true;
+  try {
+    const players = parsePlayers();
+    if (players.length === 0) {
+      console.warn("[Refresh] No players configured");
+      return;
     }
-  }
 
-  console.log(`[Refresh] Done: ${ok} succeeded, ${failed} failed`);
-  saveLPSnapshot();
+    console.log(`[Refresh] Updating ${players.length} players...`);
+
+    let ok = 0;
+    let failed = 0;
+
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      const result = await fetchPlayerData(p.gameName, p.tagLine);
+      if (result) ok++;
+      else failed++;
+      if (i < players.length - 1) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+
+    console.log(`[Refresh] Done: ${ok} succeeded, ${failed} failed`);
+    saveLPSnapshot();
+  } finally {
+    isRefreshing = false;
+  }
 }
 
 function saveLPSnapshot(): void {
@@ -428,6 +438,9 @@ app.get("/api/players/:gameName", (req, res) => {
 });
 
 app.get("/api/refresh", async (_req, res) => {
+  if (isRefreshing) {
+    return res.json({ status: "skipped", reason: "refresh-already-running" });
+  }
   res.json({ status: "started" });
   try {
     await refreshAllPlayers();
