@@ -172,6 +172,7 @@ async function refreshAllPlayers(): Promise<void> {
 
     console.log(`[Refresh] Done: ${ok} succeeded, ${failed} failed`);
     saveLPSnapshot();
+    await cache.persistMatchCache();
   } finally {
     isRefreshing = false;
   }

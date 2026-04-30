@@ -8,6 +8,8 @@ import type { LPSnapshot } from "./lp-history.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_FILE = path.resolve(__dirname, "../data/lp-snapshots.json");
+const MATCHES_FILE = path.resolve(__dirname, "../data/matches.json");
+const PROCESSED_FILE = path.resolve(__dirname, "../data/processed-matches.json");
 
 interface CacheEntry<T> {
   data: T;
@@ -191,6 +193,49 @@ export class PlayerCache {
 
     this.setPlayer(playerData.gameName, playerData);
     this.setMatches(playerData.puuid, matchPoints);
+  }
+
+  async loadMatchCache(): Promise<void> {
+    try {
+      const raw = await fs.readFile(PROCESSED_FILE, "utf-8");
+      const ids: string[] = JSON.parse(raw);
+      if (Array.isArray(ids)) {
+        this.processedMatches = new Set(ids);
+        console.log(`[MATCH] Loaded ${ids.length} processed match IDs from disk`);
+      }
+    } catch (err: any) {
+      if (err.code !== "ENOENT") console.error("[MATCH] Failed to load processed IDs:", err.message);
+    }
+    try {
+      const raw = await fs.readFile(MATCHES_FILE, "utf-8");
+      const data: Record<string, MatchPoints[]> = JSON.parse(raw);
+      let count = 0;
+      for (const [puuid, matches] of Object.entries(data)) {
+        if (Array.isArray(matches) && matches.length > 0) {
+          this.matches.set(puuid, { data: matches, timestamp: Date.now() });
+          count += matches.length;
+        }
+      }
+      console.log(`[MATCH] Loaded ${count} matches for ${this.matches.size} players from disk`);
+    } catch (err: any) {
+      if (err.code !== "ENOENT") console.error("[MATCH] Failed to load matches:", err.message);
+    }
+  }
+
+  async persistMatchCache(): Promise<void> {
+    const matchData: Record<string, MatchPoints[]> = {};
+    for (const [puuid, entry] of this.matches) {
+      if (entry.data.length > 0) {
+        matchData[puuid] = entry.data;
+      }
+    }
+    try {
+      await fs.writeFile(PROCESSED_FILE, JSON.stringify(Array.from(this.processedMatches)), "utf-8");
+      await fs.writeFile(MATCHES_FILE, JSON.stringify(matchData), "utf-8");
+      console.log(`[MATCH] Persisted ${this.processedMatches.size} processed IDs + ${Object.values(matchData).reduce((s, m) => s + m.length, 0)} matches to disk`);
+    } catch (err) {
+      console.error("[MATCH] Failed to persist match cache:", err);
+    }
   }
 }
 
