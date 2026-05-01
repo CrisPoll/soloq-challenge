@@ -18,7 +18,7 @@ export default function App() {
       </div>
 
       <div className="relative z-10 max-w-[1200px] w-full px-4 sm:px-6">
-        <Header onRefresh={refresh} />
+        <Header />
 
         <main className="py-8 pb-20 space-y-12">
           <div className="text-center">
