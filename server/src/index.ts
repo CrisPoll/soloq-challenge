@@ -421,7 +421,8 @@ app.get("/api/fix-snapshots", async (_req, res) => {
       }
     }
     await fs.writeFile(SNAPSHOT_FILE, JSON.stringify(data, null, 2), "utf-8");
-    await cache.loadLPSnapshots();
+  await cache.loadLPSnapshots();
+  await cache.loadMatchCache();
     console.log(`[FIX] Recalculated ${fixed} numericLP values across ${data.length} snapshots`);
     res.json({ status: "ok", snapshots: data.length, fixed });
   } catch (err: any) {

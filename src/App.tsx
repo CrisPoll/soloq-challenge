@@ -14,10 +14,10 @@ export default function App() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center">
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent/3 rounded-full blur-[180px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent/8 rounded-full blur-[180px]" />
       </div>
 
-      <div className="relative z-10 max-w-[1200px] w-full px-6">
+      <div className="relative z-10 max-w-[1200px] w-full px-4 sm:px-6">
         <Header onRefresh={refresh} />
 
         <main className="py-8 pb-20 space-y-12">
@@ -30,7 +30,7 @@ export default function App() {
               <span className="text-accent">TEAM</span>
             </h1>
             <p
-              className="text-[10px] tracking-[0.5em] text-zinc-500 mt-2 uppercase"
+              className="text-xs tracking-[0.5em] text-zinc-500 mt-2 uppercase"
               style={{ fontFamily: "var(--font-display)" }}
             >
               SoloQ Challenge · LAS
@@ -52,24 +52,24 @@ export default function App() {
           </div>
 
           <div className="border-t border-zinc-700/50 pt-8">
-            <span
+            <h2
               className="text-xs text-zinc-500 tracking-widest uppercase"
               style={{ fontFamily: "var(--font-display)" }}
             >
               PROGRESIÓN DE LP
-            </span>
+            </h2>
           </div>
 
           <LPChart players={players} />
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-400/5 border border-red-400/10 px-4 py-2 rounded-lg inline-block">
+            <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/10 px-4 py-2 rounded-lg inline-block">
               {error}
             </p>
           )}
         </main>
 
-        <footer className="text-center py-6 text-[10px] text-zinc-600 border-t border-white/5">
+        <footer className="text-center py-6 text-xs text-zinc-500 border-t border-white/5">
           AMORFOS TEAM · SoloQ Challenge LAS · Datos vía RIOT API · Hecho por: Koktei
         </footer>
       </div>

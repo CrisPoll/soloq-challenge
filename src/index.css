@@ -6,12 +6,11 @@
   --color-bg-card: #27272a;
   --color-bg-hover: #3f3f46;
   --color-accent: #facc15;
-  --color-accent-glow: #eab308;
   --color-win: #22c55e;
   --color-loss: #ef4444;
   --color-border: rgba(255, 255, 255, 0.05);
   --color-muted: #a1a1aa;
-  --font-display: "Rajdhani", "Barlow", system-ui, sans-serif;
+  --font-display: "Rajdhani", system-ui, sans-serif;
   --font-data: "Inter", system-ui, sans-serif;
 }
 
@@ -24,26 +23,20 @@ body {
   color: #f4f4f5;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+body.scroll-locked { overflow: hidden; }
 
 #root { min-height: 100vh; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 0; opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
   animation: fadeIn 0.35s ease-out forwards;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .skeleton {
@@ -60,6 +53,27 @@ body {
 .scrollbar-thin::-webkit-scrollbar { width: 4px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+
+@supports not selector(::-webkit-scrollbar) {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #27272a transparent;
+  }
+}
+
+.glass-card {
+  background: rgba(24, 24, 27, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #facc15, 0 0 0 4px rgba(250, 204, 21, 0.3);
+  border-radius: 4px;
+}
 
 .glow-diamond { text-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
 .glow-master  { text-shadow: 0 0 12px rgba(168, 85, 247, 0.4); }

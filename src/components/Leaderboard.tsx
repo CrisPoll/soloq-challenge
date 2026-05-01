@@ -1,4 +1,5 @@
 import type { PlayerData, RankInfo } from "../types";
+import { TIER_GRADIENTS, getRankIcon } from "../constants";
 
 function RankBadge({ rank }: { rank: RankInfo }) {
   if (rank.tier === "UNRANKED") {
@@ -14,13 +15,10 @@ function RankBadge({ rank }: { rank: RankInfo }) {
     );
   }
 
-  const tierKey = rank.tier.toLowerCase();
-  const imgUrl = `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/${tierKey}.png`;
-
   return (
     <div className="flex items-center gap-2">
       <img
-        src={imgUrl}
+        src={getRankIcon(rank.tier)}
         alt={rank.tier}
         className="w-10 h-10 rounded-full"
         onError={(e) => {
@@ -45,7 +43,7 @@ interface Props {
 
 function SkeletonCard() {
   return (
-    <div className="glass-card p-6 animate-pulse">
+    <div className="glass-card p-6">
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-full skeleton" />
         <div className="flex-1 space-y-2">
@@ -57,19 +55,6 @@ function SkeletonCard() {
     </div>
   );
 }
-
-const TIER_COLORS: Record<string, string> = {
-  challenger: "from-amber-300 to-yellow-500",
-  grandmaster: "from-red-400 to-red-600",
-  master: "from-purple-400 to-purple-600",
-  diamond: "from-cyan-400 to-blue-500",
-  emerald: "from-emerald-400 to-green-600",
-  platinum: "from-teal-400 to-teal-600",
-  gold: "from-yellow-400 to-amber-500",
-  silver: "from-slate-300 to-slate-500",
-  bronze: "from-orange-400 to-orange-700",
-  iron: "from-stone-400 to-stone-600",
-};
 
 export default function Leaderboard({ players, loading, startRank = 1 }: Props) {
   if (loading && players.length === 0) {
@@ -93,9 +78,6 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
     );
   }
 
-  const tierColor = (tier: string) =>
-    TIER_COLORS[tier.toLowerCase()] || "from-slate-400 to-slate-600";
-
   return (
     <div className="w-full max-w-6xl mx-auto px-4 space-y-3">
       {players.map((player, i) => {
@@ -103,6 +85,7 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
         const isFirst = pos === 1;
         const isSecond = pos === 2;
         const isThird = pos === 3;
+        const tierGradient = TIER_GRADIENTS[player.rank.tier] || "from-slate-400 to-slate-600";
 
         return (
           <div
@@ -117,7 +100,7 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
                 ) : isSecond ? (
                   <span className="text-slate-300 text-lg font-bold">2</span>
                 ) : isThird ? (
-                  <span className="text-amber-700 text-lg font-bold">3</span>
+                  <span className="text-amber-500 text-lg font-bold">3</span>
                 ) : (
                   <span className="text-slate-500 text-sm font-semibold">
                     {pos}
@@ -145,7 +128,7 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
                     </span>
                     {player.rank.tier !== "UNRANKED" && (
                       <span
-                        className={`hidden sm:inline text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gradient-to-r ${tierColor(player.rank.tier)} text-white/90`}
+                        className={`hidden sm:inline text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gradient-to-r ${tierGradient} text-white/90`}
                       >
                         {player.rank.tier} {player.rank.rank}
                       </span>
@@ -175,13 +158,13 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
                   <p className="text-lg font-bold text-white">
                     {player.stats.avgKDA.toFixed(1)}
                   </p>
-                  <p className="text-[10px] text-slate-500 uppercase">KDA</p>
+                  <p className="text-xs text-slate-500 uppercase">KDA</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">
                     {player.stats.avgCS.toFixed(0)}
                   </p>
-                  <p className="text-[10px] text-slate-500 uppercase">CS</p>
+                  <p className="text-xs text-slate-500 uppercase">CS</p>
                 </div>
                 <div>
                   <p
@@ -194,7 +177,7 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
                     {player.stats.totalLPChange >= 0 ? "+" : ""}
                     {player.stats.totalLPChange}
                   </p>
-                  <p className="text-[10px] text-slate-500 uppercase">LP</p>
+                  <p className="text-xs text-slate-500 uppercase">LP</p>
                 </div>
               </div>
 
@@ -202,7 +185,7 @@ export default function Leaderboard({ players, loading, startRank = 1 }: Props) 
                 <p className="text-xl sm:text-2xl font-extrabold text-accent">
                   {player.points}
                 </p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                <p className="text-xs text-slate-500 uppercase tracking-wider">
                   PTS
                 </p>
               </div>

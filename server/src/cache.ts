@@ -67,7 +67,7 @@ export class PlayerCache {
 
   getMatches(puuid: string): MatchPoints[] | null {
     const entry = this.matches.get(puuid);
-    if (!entry || Date.now() - entry.timestamp > this.ttl) {
+    if (!entry) {
       return null;
     }
     return entry.data;

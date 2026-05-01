@@ -4,11 +4,7 @@ import {
   ResponsiveContainer, CartesianGrid, Area, ComposedChart,
 } from "recharts";
 import type { LPSnapshot, PlayerData } from "../types";
-
-const PLAYER_COLORS = [
-  "#FF6B6B", "#4ECDC4", "#FFD93D", "#6C5CE7", "#A8E6CF",
-  "#FF8C42", "#45B7D1", "#F7DC6F", "#BB8FCE",
-];
+import { PLAYER_COLORS } from "../constants";
 
 const CUTOFF = new Date("2026-04-28T00:00:00-04:00").getTime();
 
@@ -92,7 +88,7 @@ export default function LPChart({ players }: { players: PlayerData[] }) {
           <p className="text-zinc-500 text-sm" style={{ fontFamily: "var(--font-display)" }}>
             Acumulando datos...
           </p>
-          <p className="text-zinc-600 text-[11px] mt-1">
+          <p className="text-zinc-500 text-xs mt-1">
             {snapshots.length} de 5 snapshots necesarios para mostrar el gráfico
           </p>
         </div>
@@ -137,20 +133,25 @@ export default function LPChart({ players }: { players: PlayerData[] }) {
             Progresión de LP · desde 28/04
           </h3>
           <div className="flex gap-1.5 flex-wrap">
-            {playerNames.map((name, i) => (
-              <button
-                key={name}
-                onClick={() => setVisible((v) => ({ ...v, [name]: !v[name] }))}
-                className="text-[10px] px-2.5 py-0.5 rounded-full border transition-all cursor-pointer"
-                style={{
-                  borderColor: visible[name] ? (PLAYER_COLORS[i] || "#888") : "rgba(255,255,255,0.08)",
-                  color: visible[name] ? (PLAYER_COLORS[i] || "#888") : "#52525b",
-                  opacity: visible[name] ? 1 : 0.45,
-                }}
-              >
-                {name}
-              </button>
-            ))}
+            {playerNames.map((name, i) => {
+              const color = PLAYER_COLORS[i] || "#888";
+              const isActive = visible[name];
+              return (
+                <button
+                  key={name}
+                  onClick={() => setVisible((v) => ({ ...v, [name]: !v[name] }))}
+                  aria-pressed={isActive}
+                  className="focus-ring text-xs px-2.5 py-0.5 rounded-full border transition-all cursor-pointer"
+                  style={{
+                    borderColor: isActive ? color : "rgba(255,255,255,0.1)",
+                    color: isActive ? color : "#71717a",
+                    opacity: isActive ? 1 : 0.55,
+                  }}
+                >
+                  {name}
+                </button>
+              );
+            })}
           </div>
         </div>
 
