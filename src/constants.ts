@@ -1,6 +1,7 @@
 export const PLAYER_COLORS = [
   "#FF6B6B", "#4ECDC4", "#FFD93D", "#6C5CE7", "#A8E6CF",
-  "#FF8C42", "#45B7D1", "#F7DC6F", "#BB8FCE",
+  "#FF8C42", "#45B7D1", "#F7DC6F", "#BB8FCE", "#FF6AD5",
+  "#01CDFE", "#05FFA1", "#B967FF", "#FF71CE", "#B5EAD7",
 ];
 
 export const TIER_COLORS: Record<string, string> = {

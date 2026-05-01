@@ -77,6 +77,10 @@ export interface GlobalStats {
     gameName: string;
     lpGained: number;
   } | null;
+  worstPlayer: {
+    gameName: string;
+    lpGained: number;
+  } | null;
   topChampions: {
     champion: string;
     championIcon: string;

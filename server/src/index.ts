@@ -244,16 +244,19 @@ app.get("/api/global-stats", (_req, res) => {
   const totalGames = players.reduce((s, p) => s + p.stats.gamesPlayed, 0);
 
   let playerOfDay: { gameName: string; lpGained: number } | null = null;
-  const todayMidnight = new Date();
-  todayMidnight.setHours(0, 0, 0, 0);
-  const dayStart = todayMidnight.getTime();
+  let worstPlayer: { gameName: string; lpGained: number } | null = null;
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  threeDaysAgo.setHours(0, 0, 0, 0);
+  const dayStart = threeDaysAgo.getTime();
 
-  const todaySnapshots = snapshots.filter((s) => s.timestamp >= dayStart);
+  const recentSnapshots = snapshots.filter((s) => s.timestamp >= dayStart);
 
-  if (todaySnapshots.length >= 2) {
-    const earliest = todaySnapshots[0];
-    const latest = todaySnapshots[todaySnapshots.length - 1];
+  if (recentSnapshots.length >= 2) {
+    const earliest = recentSnapshots[0];
+    const latest = recentSnapshots[recentSnapshots.length - 1];
     let best = { gameName: "", lpGained: -1 };
+    let worst = { gameName: "", lpGained: 1 };
     for (const p of players) {
       const firstLP = earliest.players.find(
         (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
@@ -263,77 +266,104 @@ app.get("/api/global-stats", (_req, res) => {
       );
       if (firstLP && lastLP) {
         const gained = lastLP.numericLP - firstLP.numericLP;
-        console.log(`[POD] ${p.gameName}: first=${firstLP.numericLP} (${firstLP.tier} ${firstLP.rank} ${firstLP.lp}LP) last=${lastLP.numericLP} (${lastLP.tier} ${lastLP.rank} ${lastLP.lp}LP) delta=${gained}`);
         if (gained > best.lpGained) {
           best = { gameName: p.gameName, lpGained: gained };
+        }
+        if (gained < worst.lpGained) {
+          worst = { gameName: p.gameName, lpGained: gained };
         }
       }
     }
     if (best.lpGained > 0) {
       playerOfDay = best;
     }
+    if (worst.lpGained < 0) {
+      worstPlayer = worst;
+    }
   }
+
 
   if (!playerOfDay) {
     let mostWins = { gameName: "", wins: 0, lpGained: 0 };
     for (const p of players) {
-      const todayWins = p.matches.filter(
+      const recentWins = p.matches.filter(
         (m) => m.result === "Win" && m.timestamp >= dayStart
       ).length;
-      if (todayWins > mostWins.wins) {
-        const delta = todaySnapshots.length >= 2
+      if (recentWins > mostWins.wins) {
+        const delta = recentSnapshots.length >= 2
           ? (() => {
-              const first = todaySnapshots[0].players.find(
+              const first = recentSnapshots[0].players.find(
                 (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
               );
-              const last = todaySnapshots[todaySnapshots.length - 1].players.find(
+              const last = recentSnapshots[recentSnapshots.length - 1].players.find(
                 (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
               );
               return first && last ? last.numericLP - first.numericLP : 0;
             })()
           : 0;
-        mostWins = { gameName: p.gameName, wins: todayWins, lpGained: delta };
+        mostWins = { gameName: p.gameName, wins: recentWins, lpGained: delta };
       }
     }
     if (mostWins.wins > 0) {
-      playerOfDay = { gameName: mostWins.gameName, lpGained: mostWins.lpGained };
+      playerOfDay = mostWins;
     }
   }
 
-  const champMap = new Map<string, {
-    champion: string; wins: number; losses: number; playedBy: string;
-  }>();
+  if (!worstPlayer) {
+    let mostLosses = { gameName: "", losses: 0, lpGained: 0 };
+    for (const p of players) {
+      const recentLosses = p.matches.filter(
+        (m) => m.result === "Loss" && m.timestamp >= dayStart
+      ).length;
+      if (recentLosses > mostLosses.losses) {
+        const delta = recentSnapshots.length >= 2
+          ? (() => {
+              const first = recentSnapshots[0].players.find(
+                (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
+              );
+              const last = recentSnapshots[recentSnapshots.length - 1].players.find(
+                (sp) => sp.gameName.toLowerCase() === p.gameName.toLowerCase()
+              );
+              return first && last ? last.numericLP - first.numericLP : 0;
+            })()
+          : 0;
+        mostLosses = { gameName: p.gameName, losses: recentLosses, lpGained: delta };
+      }
+    }
+    if (mostLosses.losses > 0) {
+      worstPlayer = { gameName: mostLosses.gameName, lpGained: mostLosses.lpGained };
+    }
+  }
+
+  const champMap = new Map<string, { champion: string; wins: number; losses: number }>();
   for (const p of players) {
     for (const m of p.matches) {
-      const key = m.champion;
-      const existing = champMap.get(key);
+      const existing = champMap.get(m.champion);
       if (existing) {
         if (m.result === "Win") existing.wins++;
         else existing.losses++;
       } else {
-        champMap.set(key, {
+        champMap.set(m.champion, {
           champion: m.champion,
           wins: m.result === "Win" ? 1 : 0,
           losses: m.result === "Loss" ? 1 : 0,
-          playedBy: p.gameName,
         });
       }
     }
   }
+
   const topChampions = Array.from(champMap.values())
     .map((c) => ({
-      ...c,
+      champion: c.champion,
       championIcon: `https://ddragon.leagueoflegends.com/cdn/14.8.1/img/champion/${c.champion}.png`,
+      wins: c.wins,
+      losses: c.losses,
       winrate: c.wins + c.losses > 0 ? c.wins / (c.wins + c.losses) : 0,
     }))
-    .sort((a, b) => b.winrate - a.winrate || b.wins - a.wins);
+    .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses))
+    .slice(0, 5);
 
-  const eligible = topChampions.filter((c) => c.wins + c.losses >= 3);
-  const top5 = eligible.length > 0
-    ? eligible.slice(0, 5)
-    : topChampions.slice(0, 5);
-
-  res.json({ avgWinrate, totalGames, playerOfDay, topChampions: top5 });
+  res.json({ avgWinrate, totalGames, playerOfDay, worstPlayer, topChampions });
 });
 
 app.get("/api/seed-mock", async (_req, res) => {

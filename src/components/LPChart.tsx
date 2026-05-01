@@ -63,21 +63,32 @@ export default function LPChart({ players }: { players: PlayerData[] }) {
     return () => clearInterval(interval);
   }, []);
 
+  const playerNames = useMemo(
+    () => {
+      const seen = new Set<string>();
+      const names: string[] = [];
+      for (const s of snapshots) {
+        for (const p of s.players) {
+          if (!seen.has(p.gameName)) {
+            seen.add(p.gameName);
+            names.push(p.gameName);
+          }
+        }
+      }
+      return names;
+    },
+    [snapshots]
+  );
+
   useEffect(() => {
-    const names = snapshots[0]?.players.map((p) => p.gameName) || [];
-    if (names.length > 0) {
+    if (playerNames.length > 0) {
       setVisible((prev) => {
         const next = { ...prev };
-        names.forEach((n) => { if (!(n in next)) next[n] = true; });
+        playerNames.forEach((n) => { if (!(n in next)) next[n] = true; });
         return next;
       });
     }
-  }, [snapshots]);
-
-  const playerNames = useMemo(
-    () => snapshots[0]?.players.map((p) => p.gameName) || [],
-    [snapshots]
-  );
+  }, [playerNames]);
 
   const leader = playerNames[0] || "";
 

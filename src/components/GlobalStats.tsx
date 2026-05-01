@@ -90,7 +90,7 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
               <polyline points="17 6 23 6 23 12" />
             </svg>
-            <span className="text-[11px] text-zinc-500 uppercase tracking-wider">Jugador del Día</span>
+            <span className="text-[11px] text-zinc-500 uppercase tracking-wider">Jugador Destacado</span>
           </div>
           {stats.playerOfDay ? (
             <div>
@@ -105,6 +105,34 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
                 return (
                   <p className={`text-xs font-semibold tabular-nums ${deltaColor}`}>
                     {delta === 0 ? "±0" : `${prefix}${absDelta}`} LP
+                  </p>
+                );
+              })()}
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-500">Sin datos aún</p>
+          )}
+        </div>
+
+        <div className="border-t border-zinc-800 pt-3.5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-400 flex-shrink-0" aria-hidden="true">
+              <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+              <polyline points="17 18 23 18 23 12" />
+            </svg>
+            <span className="text-[11px] text-zinc-500 uppercase tracking-wider">Jugador en Decadencia</span>
+          </div>
+          {stats.worstPlayer ? (
+            <div>
+              <p className="text-sm font-bold text-white uppercase truncate" style={{ fontFamily: "var(--font-display)" }}>
+                {stats.worstPlayer.gameName}
+              </p>
+              {(() => {
+                const delta = stats.worstPlayer.lpGained;
+                const absDelta = Math.abs(delta);
+                return (
+                  <p className="text-xs font-semibold tabular-nums text-red-400">
+                    -{absDelta} LP
                   </p>
                 );
               })()}
@@ -136,7 +164,6 @@ export default function GlobalStats({ players }: { players: PlayerData[] }) {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-white font-medium truncate">{c.champion}</p>
-                    <p className="text-[11px] text-zinc-500">{c.playedBy}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs font-semibold text-green-400 tabular-nums">
